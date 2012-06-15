@@ -14,7 +14,7 @@
 		return "Panel #" + index; // This would have each tab with the text 'Panel #X' where X = index
 	}
 */
-;(function($) {
+;(function($) { 
 
 	$.anythingSlider = function(el, options) {
 
@@ -192,7 +192,7 @@
 			base.$items = base.$el.children();
 			base.pages = base.$items.length;
 			base.dir = (o.mode === 'vertical') ? 'top' : 'left';
-			o.showMultiple = (o.mode === 'vertical') ? 1 : parseInt(o.showMultiple,10) || 1; // only integers allowed
+            o.showMultiple = parseInt(o.showMultiple, 10) || 1; // only integers allowed
 			o.navigationSize = (o.navigationSize === false) ? 0 : parseInt(o.navigationSize,10) || 0;
 
 			// Fix tabbing through the page, but don't change the view if the link is in view (showMultiple = true)
@@ -426,7 +426,7 @@
 				var w = base.$outer.width() - base.outerPad[0],
 					h = (base.$outer[0].tagName === "BODY" ? base.$win.height() : base.$outer.height()) - base.outerPad[1];
 				// base.width = width of one panel, so multiply by # of panels; outerPad is padding added for arrows.
-				if (base.width * o.showMultiple !== w || base.height !== h) {
+                if ((o.mode !== 'vertical') ? base.width * o.showMultiple : base.width !== w || (o.mode === 'vertical') ? base.height * o.showMultiple : base.height !== h) {
 					base.setDimensions(); // adjust panel sizes
 					// make sure page is lined up (use -1 animation time, so we can differeniate it from when animationTime = 0)
 					base.gotoPage(base.currentPage, base.playing, null, -1);
@@ -440,13 +440,15 @@
 			var w, h, c, t, edge = 0,
 				fullsize = { width: '100%', height: '100%' },
 				// determine panel width
+            // should this be changed for multiple vertical panels?
 				pw = (o.showMultiple > 1) ? base.width || base.$window.width()/o.showMultiple : base.$window.width(),
 				winw = base.$win.width();
 			if (o.expand){
 				w = base.$outer.width() - base.outerPad[0];
-				base.height = h = base.$outer.height() - base.outerPad[1];
+                h = base.$outer.height() - base.outerPad[1];
+                base.height = (o.mode === 'vertical' && o.showMultiple > 1) ? h / o.showMultiple : h;
 				base.$wrapper.add(base.$window).add(base.$items).css({ width: w, height: h });
-				base.width = pw = (o.showMultiple > 1) ? w/o.showMultiple : w;
+                base.width = pw = (o.mode !== 'vertical' && o.showMultiple > 1) ? w / o.showMultiple : w;
 			}
 			base.$items.each(function(i){
 				t = $(this);
@@ -454,7 +456,7 @@
 				if (o.resizeContents){
 					// resize panel
 					w = base.width;
-					h = base.height;
+                    h = (o.mode !== 'vertical') ? base.height : base.height / o.showMultiple;
 					t.css({ width: w, height: h });
 					if (c.length) {
 						if (c[0].tagName === "EMBED") { c.attr(fullsize); } // needed for IE7; also c.length > 1 in IE7
@@ -471,7 +473,7 @@
 					}
 					t.css('width', w); // set width of panel
 					h = (c.length === 1 ? c.outerHeight(true) : t.height()); // get height after setting width
-					if (h <= base.outerPad[1]) { h = base.height; } // if height less than the outside padding, then set it to the preset height
+                    if (h <= base.outerPad[1] && o.mode !== 'vertical' && o.showMultiple <= 1) { h = base.height; } // if height less than the outside padding, then set it to the preset height
 					t.css('height', h);
 				}
 				base.panelSize[i] = [w,h,edge];
@@ -491,22 +493,34 @@
 				w = i[0] || w;
 				h = i[1] || h;
 			}
-			if (o.showMultiple > 1) {
+            if (o.showMultiple > 1 && o.mode !== 'vertical') {
 				for (i=1; i < o.showMultiple; i++) {
 					w += base.panelSize[(page + i)][0];
 					h = Math.max(h, base.panelSize[page + i][1]);
 				}
 			}
+            else if (o.showMultiple > 1 && o.mode === 'vertical') {
+                for (i = 1; i < o.showMultiple; i++) {
+                    if (page + i < base.panelSize.length) {
+                        w = Math.max(w, base.panelSize[page + i][0]);
+                        h += base.panelSize[(page + i)][1];
+                    }
+                }
+            }
 			return [w,h];
 		};
 
 		base.goForward = function(autoplay) {
+            if (o.stopAtEnd !== true || (base.exactPage + o.showMultiple) <= base.pages) {
 			// targetPage changes before animation so if rapidly changing pages, it will have the correct current page
 			base.gotoPage(base[ o.allowRapidChange ? 'targetPage' : 'currentPage'] + o.changeBy * (o.playRtl ? -1 : 1), autoplay);
+            }    
 		};
 
 		base.goBack = function(autoplay) {
+		    if (o.stopAtEnd !== true || base.exactPage !== 1) {
 			base.gotoPage(base[ o.allowRapidChange ? 'targetPage' : 'currentPage'] + o.changeBy * (o.playRtl ? 1 : -1), autoplay);
+            }
 		};
 
 		base.gotoPage = function(page, autoplay, callback, time) {
